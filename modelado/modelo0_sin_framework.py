@@ -1,78 +1,57 @@
-"""
-Modelo KNN implementado desde cero para clasificar actividades REHAB.
+"""Modelo KNN implementado desde cero para clasificar actividades REHAB.
 
-Este programa puede ejecutarse directamente desde una terminal y no depende
-de Jupyter Notebook ni de un IDE. NumPy se utiliza para leer los datos y
-realizar operaciones matematicas, pero el algoritmo KNN, la votacion y el
-calculo de la exactitud estan implementados manualmente.
-
-Ejecucion:
-    python3 modelo0_sin_framework.py
+Se ejecuta desde terminal y lee datos_train.csv y datos_test.csv. Cada fila
+es una observacion independiente con 120 caracteristicas y una actividad.
 """
 
-from csv import DictReader
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 
 
-# La ruta se calcula desde la ubicacion de este archivo, por lo que el programa
-# funciona aunque se ejecute desde otra carpeta.
 CARPETA_PROYECTO = Path(__file__).resolve().parent.parent
 RUTA_DATOS_MODELO = CARPETA_PROYECTO / "datos_modelo"
-
+ 
 
 def cargar_datos():
-    """Carga los cuatro arreglos preparados y los metadatos de prueba."""
+    """Carga los CSV y separa las caracteristicas de la etiqueta."""
 
-    X_train = np.load(
-        RUTA_DATOS_MODELO / "X_train.npy", allow_pickle=False
+    datos_train = pd.read_csv(
+        RUTA_DATOS_MODELO / "datos_train.csv",
+        dtype={"actividad": str},
     )
-    X_test = np.load(
-        RUTA_DATOS_MODELO / "X_test.npy", allow_pickle=False
-    )
-    y_train = np.load(
-        RUTA_DATOS_MODELO / "y_train.npy", allow_pickle=False
-    )
-    y_test = np.load(
-        RUTA_DATOS_MODELO / "y_test.npy", allow_pickle=False
+    datos_test = pd.read_csv(
+        RUTA_DATOS_MODELO / "datos_test.csv",
+        dtype={"actividad": str},
     )
 
-    # Solo se necesita sample_id para reunir las cuatro ventanas que proceden
-    # de una misma señal. Este identificador no se usa como entrada del KNN.
-    ruta_metadatos = RUTA_DATOS_MODELO / "metadatos_test.csv"
-    with ruta_metadatos.open(encoding="utf-8", newline="") as archivo:
-        sample_ids = np.asarray(
-            [fila["sample_id"] for fila in DictReader(archivo)]
-        )
+    if datos_train.columns[-1] != "actividad":
+        raise ValueError("actividad debe ser la ultima columna de train.")
+    if datos_test.columns[-1] != "actividad":
+        raise ValueError("actividad debe ser la ultima columna de test.")
 
-    if len(X_train) != len(y_train):
-        raise ValueError("X_train y y_train no tienen la misma longitud.")
-    if len(X_test) != len(y_test):
-        raise ValueError("X_test y y_test no tienen la misma longitud.")
-    if len(X_test) != len(sample_ids):
-        raise ValueError("Los metadatos no coinciden con las ventanas de prueba.")
+    X_train = datos_train.drop(columns="actividad").to_numpy()
+    X_test = datos_test.drop(columns="actividad").to_numpy()
+    y_train = datos_train["actividad"].to_numpy()
+    y_test = datos_test["actividad"].to_numpy()
 
-    return X_train, X_test, y_train, y_test, sample_ids
+    if len(X_train) != len(y_train) or len(X_test) != len(y_test):
+        raise ValueError("Las caracteristicas y etiquetas no estan alineadas.")
+
+    return X_train, X_test, y_train, y_test
 
 
 def estandarizar_datos(X_train, X_test):
-    """Estandariza ambos conjuntos usando solamente parametros de train."""
+    """Estandariza usando solamente la media y desviacion de train."""
 
     media_train = np.mean(X_train, axis=0)
     desviacion_train = np.std(X_train, axis=0)
-
-    # Evita divisiones entre cero en caracteristicas constantes.
     desviacion_train[desviacion_train == 0] = 1
 
-    X_train_escalado = (X_train - media_train) / desviacion_train
-    X_test_escalado = (X_test - media_train) / desviacion_train
-
-    # Se conserva float64 para evitar desbordamientos numericos en las
-    # multiplicaciones utilizadas para calcular las distancias.
     return (
-        X_train_escalado.astype(np.float64),
-        X_test_escalado.astype(np.float64),
+        ((X_train - media_train) / desviacion_train).astype(np.float64),
+        ((X_test - media_train) / desviacion_train).astype(np.float64),
     )
 
 
@@ -97,46 +76,43 @@ class KNNDesdeCero:
         return self
 
     def _predecir_bloque(self, X_bloque):
-        """Calcula vecinos y predicciones para un bloque de ventanas."""
+        """Calcula vecinos y predicciones para un bloque de datos."""
 
         # Distancia euclidiana al cuadrado:
         # ||a-b||² = ||a||² + ||b||² - 2(a·b)
         norma_prueba = np.sum(X_bloque**2, axis=1, keepdims=True)
-        # Algunas versiones de la biblioteca numerica de macOS pueden emitir
-        # advertencias internas espurias durante matmul, aun cuando el
-        # resultado es finito. El control siguiente evita mostrarlas.
+
         with np.errstate(over="ignore", divide="ignore", invalid="ignore"):
             distancias = (
                 norma_prueba
                 + self.norma_train
                 - 2 * X_bloque @ self.X_train.T
             )
-        distancias = np.maximum(distancias, 0)
 
-        # Obtiene los indices de los k vecinos mas cercanos sin ordenar toda
-        # la matriz de distancias.
+        distancias = np.maximum(distancias, 0)
         indices_vecinos = np.argpartition(
             distancias, kth=self.k - 1, axis=1
         )[:, : self.k]
 
         predicciones = []
+
         for fila, vecinos in enumerate(indices_vecinos):
             etiquetas_vecinos = self.y_numerico[vecinos]
             votos = np.bincount(
                 etiquetas_vecinos, minlength=len(self.clases)
             )
-            ganadoras = np.flatnonzero(votos == votos.max())
+            clases_ganadoras = np.flatnonzero(votos == votos.max())
 
-            if len(ganadoras) == 1:
-                clase_elegida = ganadoras[0]
+            if len(clases_ganadoras) == 1:
+                clase_elegida = clases_ganadoras[0]
             else:
-                # Si el voto del KNN empata, gana la clase empatada cuyo
-                # vecino se encuentre mas cerca.
+                # En un empate gana la clase empatada cuyo vecino este
+                # mas cerca de la observacion evaluada.
                 orden = np.argsort(distancias[fila, vecinos])
                 clase_elegida = next(
                     etiquetas_vecinos[posicion]
                     for posicion in orden
-                    if etiquetas_vecinos[posicion] in ganadoras
+                    if etiquetas_vecinos[posicion] in clases_ganadoras
                 )
 
             predicciones.append(self.clases[clase_elegida])
@@ -144,7 +120,7 @@ class KNNDesdeCero:
         return np.asarray(predicciones)
 
     def predict(self, X):
-        """Predice las etiquetas procesando las ventanas por bloques."""
+        """Predice las etiquetas procesando las observaciones por bloques."""
 
         X = np.asarray(X, dtype=np.float64)
         predicciones = []
@@ -163,36 +139,73 @@ def calcular_exactitud(y_real, y_predicha):
     return aciertos, aciertos / len(y_real)
 
 
-def votar_por_senal(sample_ids, y_real, y_predicha):
-    """Combina las cuatro predicciones mediante votacion mayoritaria."""
+def calcular_metricas_clasificacion(y_real, y_predicha):
+    """Calcula manualmente matriz, precision, recall y F1 por actividad."""
 
-    grupos = {}
-    for sample_id, real, predicha in zip(sample_ids, y_real, y_predicha):
-        if sample_id not in grupos:
-            grupos[sample_id] = {"real": real, "predicciones": []}
-        grupos[sample_id]["predicciones"].append(predicha)
+    clases = np.unique(np.concatenate([y_real, y_predicha]))
+    posicion_clase = {
+        clase: posicion for posicion, clase in enumerate(clases)
+    }
 
-    reales_senal = []
-    predicciones_senal = []
+    # Las filas representan clases reales y las columnas clases predichas.
+    matriz = np.zeros((len(clases), len(clases)), dtype=int)
 
-    for grupo in grupos.values():
-        conteo = {}
-        for prediccion in grupo["predicciones"]:
-            conteo[prediccion] = conteo.get(prediccion, 0) + 1
+    for real, predicha in zip(y_real, y_predicha):
+        matriz[posicion_clase[real], posicion_clase[predicha]] += 1
 
-        # max conserva la primera clase encontrada cuando existe un empate.
-        prediccion_final = max(conteo, key=conteo.get)
-        reales_senal.append(grupo["real"])
-        predicciones_senal.append(prediccion_final)
+    verdaderos_positivos = np.diag(matriz).astype(float)
+    falsos_positivos = matriz.sum(axis=0) - verdaderos_positivos
+    falsos_negativos = matriz.sum(axis=1) - verdaderos_positivos
+    soporte = matriz.sum(axis=1)
 
-    return np.asarray(reales_senal), np.asarray(predicciones_senal)
+    precision = np.divide(
+        verdaderos_positivos,
+        verdaderos_positivos + falsos_positivos,
+        out=np.zeros_like(verdaderos_positivos),
+        where=(verdaderos_positivos + falsos_positivos) != 0,
+    )
+    recall = np.divide(
+        verdaderos_positivos,
+        verdaderos_positivos + falsos_negativos,
+        out=np.zeros_like(verdaderos_positivos),
+        where=(verdaderos_positivos + falsos_negativos) != 0,
+    )
+    f1 = np.divide(
+        2 * precision * recall,
+        precision + recall,
+        out=np.zeros_like(precision),
+        where=(precision + recall) != 0,
+    )
+
+    reporte = pd.DataFrame(
+        {
+            "precision": precision,
+            "recall": recall,
+            "f1_score": f1,
+            "support": soporte,
+        },
+        index=clases,
+    )
+
+    promedios = {
+        "precision_macro": float(np.mean(precision)),
+        "recall_macro": float(np.mean(recall)),
+        "f1_macro": float(np.mean(f1)),
+        "precision_ponderada": float(np.average(precision, weights=soporte)),
+        "recall_ponderado": float(np.average(recall, weights=soporte)),
+        "f1_ponderado": float(np.average(f1, weights=soporte)),
+    }
+
+    return clases, matriz, reporte, promedios
 
 
 def main():
-    """Ejecuta de principio a fin la prueba del modelo manual."""
+    """Carga los datos, entrena KNN y muestra algunas predicciones."""
 
-    print("Cargando datos preparados...")
-    X_train, X_test, y_train, y_test, sample_ids = cargar_datos()
+    print("Cargando datos de entrenamiento y prueba...")
+    X_train, X_test, y_train, y_test = cargar_datos()
+    print(f"Entrenamiento: {X_train.shape}")
+    print(f"Prueba: {X_test.shape}")
 
     print("Estandarizando caracteristicas...")
     X_train_escalado, X_test_escalado = estandarizar_datos(
@@ -206,30 +219,43 @@ def main():
     print("Realizando predicciones...")
     y_pred_knn = modelo.predict(X_test_escalado)
 
-    # Muestra algunas predicciones solicitadas por la actividad.
-    print("\nPrimeras 10 predicciones por ventana:")
+    print("\nPrimeras 10 predicciones:")
     for posicion in range(min(10, len(y_test))):
         print(
-            f"Ventana {posicion + 1}: real={y_test[posicion]}, "
+            f"Observacion {posicion + 1}: real={y_test[posicion]}, "
             f"predicha={y_pred_knn[posicion]}"
         )
 
-    aciertos_ventana, exactitud_ventana = calcular_exactitud(
+    aciertos, exactitud = calcular_exactitud(y_test, y_pred_knn)
+    print("\nEvaluacion del modelo")
+    print(f"Predicciones correctas: {aciertos} de {len(y_test)}")
+    print(f"Exactitud: {exactitud:.4f}")
+    print(f"Porcentaje de aciertos: {exactitud * 100:.2f}%")
+
+    clases, matriz, reporte, promedios = calcular_metricas_clasificacion(
         y_test, y_pred_knn
     )
-    print("\nEvaluacion por ventana")
-    print(f"Aciertos: {aciertos_ventana} de {len(y_test)}")
-    print(f"Exactitud: {exactitud_ventana * 100:.2f}%")
 
-    y_real_senal, y_pred_senal = votar_por_senal(
-        sample_ids, y_test, y_pred_knn
+    print("\nMetricas por actividad")
+    print(reporte.round(4).to_string())
+
+    print("\nPromedios generales")
+    print(f"Precision macro: {promedios['precision_macro']:.4f}")
+    print(f"Recall macro: {promedios['recall_macro']:.4f}")
+    print(f"F1-score macro: {promedios['f1_macro']:.4f}")
+    print(
+        "F1-score ponderado: "
+        f"{promedios['f1_ponderado']:.4f}"
     )
-    aciertos_senal, exactitud_senal = calcular_exactitud(
-        y_real_senal, y_pred_senal
+
+    matriz_df = pd.DataFrame(
+        matriz,
+        index=[f"Real {clase}" for clase in clases],
+        columns=[f"Pred {clase}" for clase in clases],
     )
-    print("\nEvaluacion por señal completa")
-    print(f"Aciertos: {aciertos_senal} de {len(y_real_senal)}")
-    print(f"Exactitud: {exactitud_senal * 100:.2f}%")
+
+    print("\nMatriz de confusion")
+    print(matriz_df.to_string())
 
 
 if __name__ == "__main__":
