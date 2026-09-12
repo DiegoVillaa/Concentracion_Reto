@@ -2,7 +2,11 @@
 
 Este repositorio contiene el desarrollo de la solución para el reto REHAB de la concentración **Inteligencia Artificial para la Ciencia de Datos**.
 
-El proyecto utiliza datos de movimientos de entrenamiento para rehabilitación de pacientes que han sufrido un accidente cerebrovascular. A lo largo del reto se trabajará en la exploración, preparación y modelación de los datos para clasificar las actividades registradas.
+## Introducción al reto
+
+Un accidente cerebrovascular puede afectar la movilidad, la fuerza y la coordinación de una persona, por lo que la evaluación y el entrenamiento de rehabilitación son importantes durante su recuperación. El conjunto de datos REHAB contiene registros cinemáticos obtenidos mediante sensores portátiles durante distintos movimientos de rehabilitación.
+
+Para este reto se utilizan los datos procesados correspondientes a 16 actividades de entrenamiento. El objetivo es explorar y preparar estas señales para desarrollar un modelo de clasificación capaz de identificar la actividad realizada a partir de las mediciones de los sensores.
 
 ## ETL
 
