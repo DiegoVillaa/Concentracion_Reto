@@ -6,4 +6,8 @@ El proyecto utiliza datos de movimientos de entrenamiento para rehabilitación d
 
 ## ETL
 
-Por el momento, cada integrante del equipo está realizando individualmente una propuesta para la preparación y transformación de los datos. Después de revisar las tres propuestas, el equipo definirá en conjunto el procedimiento final y dejará el archivo seleccionado en la carpeta `ETL`.
+Después de revisar y discutir las propuestas individuales, como equipo definimos el ETL que utilizaremos para preparar nuestro conjunto de datos. El procedimiento acordado se encuentra en la carpeta `ETL`, dentro del archivo `etl_definitivo.ipynb`.
+
+## Modelación
+
+En la carpeta `modelado` se incluye el notebook con la implementación de tres modelos de clasificación, junto con su evaluación y la selección del modelo con mejor desempeño.
