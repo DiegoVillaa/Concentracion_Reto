@@ -15,7 +15,7 @@ El trabajo principal sigue este orden:
 1. Exploración inicial de los archivos y las señales.
 2. Reconstrucción y validación del archivo procesado `014_1.npy`.
 3. Limpieza y preparación de los datos mediante el ETL definitivo.
-4. Separación de las señales completas en entrenamiento y prueba.
+4. Separación de las señales completas en entrenamiento, validación y prueba.
 5. División de cada señal en ventanas y extracción de características estadísticas.
 6. Entrenamiento y comparación de tres modelos de clasificación.
 7. Revisión de sobreajuste, optimización de Random Forest y evaluación detallada.
@@ -35,9 +35,10 @@ Concentracion_Reto/
 │   └── etl_definitivo.ipynb       # Preparación acordada por el equipo
 ├── Datos modelo/
 │   ├── datos_train.csv
+│   ├── datos_validation.csv
 │   └── datos_test.csv
 ├── modelado/
-│   └── modelación_3_modelos.ipynb
+│   └── modelacion_3_modelos_def.ipynb
 └── Momento - Redefinición de datos/  # Propuestas y pruebas anteriores
 ```
 
@@ -62,49 +63,50 @@ El ETL realiza las siguientes operaciones:
 - Detecta duplicados exactos considerando los 880 puntos y los 12 canales.
 - Elimina 658 copias adicionales y conserva una señal representativa por grupo.
 - Conserva 3,890 señales limpias de las 16 actividades.
-- Separa las **señales completas** en 80% entrenamiento y 20% prueba mediante estratificación.
+- Separa las **señales completas** en 60% entrenamiento, 20% validación y 20% prueba mediante estratificación.
 - Divide cada señal en cuatro ventanas consecutivas de 220 puntos, sin traslape.
 - Calcula diez estadísticas para cada uno de los 12 canales: media, mediana, desviación estándar, mínimo, máximo, rango, percentiles 25 y 75, rango intercuartílico y RMS.
 - Genera 120 características por ventana y guarda las tablas finales.
 
-La separación se realiza antes de crear las ventanas. Por lo tanto, las cuatro ventanas procedentes de una señal permanecen juntas en entrenamiento o en prueba, evitando que fragmentos relacionados aparezcan en ambos conjuntos.
+La separación se realiza antes de crear las ventanas. Por lo tanto, las cuatro ventanas procedentes de una señal permanecen juntas en entrenamiento, validación o prueba, evitando que fragmentos relacionados aparezcan en conjuntos diferentes.
 
 Los archivos generados son:
 
-- `Datos modelo/datos_train.csv`: 12,448 ventanas, 120 características y la etiqueta.
+- `Datos modelo/datos_train.csv`: 9,336 ventanas, 120 características y la etiqueta.
+- `Datos modelo/datos_validation.csv`: 3,112 ventanas, 120 características y la etiqueta.
 - `Datos modelo/datos_test.csv`: 3,112 ventanas, 120 características y la etiqueta.
 
 ## Modelación
 
-El notebook `modelado/modelación_3_modelos.ipynb` compara tres algoritmos compatibles con las características tabulares numéricas:
+El notebook `modelado/modelacion_3_modelos_def.ipynb` compara tres algoritmos compatibles con las características tabulares numéricas:
 
 - Regresión logística, como modelo lineal de referencia.
 - SVM con kernel RBF, para representar relaciones no lineales.
 - Random Forest, para aprender relaciones no lineales e interacciones entre características.
 
-La comparación reporta exactitud, precisión macro y F1-score macro. Random Forest obtuvo el mejor desempeño inicial:
+Los modelos se ajustan con train y se comparan con validation mediante exactitud, precisión macro y F1-score macro. Random Forest obtuvo el mejor desempeño:
 
-| Modelo | Exactitud | Precisión macro | F1 macro |
+| Modelo | Exactitud validation | Precisión macro validation | F1 macro validation |
 |---|---:|---:|---:|
-| Regresión logística | 0.7873 | 0.7760 | 0.7750 |
-| SVM | 0.8869 | 0.8817 | 0.8797 |
-| Random Forest | 0.9569 | 0.9544 | 0.9529 |
+| Regresión logística | 0.7751 | 0.7640 | 0.7636 |
+| SVM | 0.8602 | 0.8539 | 0.8524 |
+| Random Forest | 0.9460 | 0.9453 | 0.9443 |
 
 ### Revisión de sobreajuste
 
-Random Forest alcanzó 1.0000 de exactitud y F1 macro en entrenamiento. En prueba obtuvo 0.9569 de exactitud y 0.9529 de F1 macro, por lo que se identificó una señal moderada de sobreajuste.
+Random Forest alcanzó 1.0000 de exactitud y F1 macro en train. En validation obtuvo 0.9460 de exactitud y 0.9443 de F1 macro, con una brecha de F1 de 0.0557. Por ello se identificó una señal moderada de sobreajuste.
 
 Para revisarla se realizaron tres análisis adicionales:
 
-1. Validación cruzada agrupada dentro de entrenamiento.
-2. Búsqueda controlada de hiperparámetros.
-3. Curva de validación para `max_depth`.
+1. Comparación directa entre train y validation.
+2. Búsqueda controlada de hiperparámetros usando validation.
+3. Curva de profundidad usando train y validation.
 
-La validación utiliza `StratifiedGroupKFold`. Cada grupo representa las cuatro ventanas de una señal original, de modo que ninguna señal comparte ventanas entre ajuste y validación. Los tres folds obtuvieron cero grupos compartidos.
+Train, validation y test se separan a nivel de señal completa antes de crear ventanas. Esto garantiza que ninguna señal comparta fragmentos entre conjuntos.
 
-La búsqueda seleccionó los mismos parámetros del modelo inicial y no mejoró sus métricas. La curva mostró subajuste con profundidades pequeñas y una estabilización del F1 macro de validación en **0.9311** desde una profundidad aproximada de 30. Limitar la profundidad a 10 redujo el F1 de validación a 0.8879, por lo que no mejoró la generalización.
+La búsqueda seleccionó los mismos parámetros del modelo inicial. La curva mostró subajuste con profundidades pequeñas y una estabilización del F1 macro de validation en **0.9443** desde una profundidad aproximada de 30. Limitar la profundidad no mejoró la generalización.
 
-En consecuencia, se conserva la configuración inicial de Random Forest. El desempeño perfecto en entrenamiento se reconoce como una señal que debe vigilarse, pero las estrategias de regularización evaluadas no produjeron una mejora.
+Después de seleccionar la configuración se unieron train y validation para reajustar el modelo final. En test reservado obtuvo **0.9563 de exactitud**, **0.9549 de precisión macro** y **0.9531 de F1 macro**. Test se utilizó una sola vez al final.
 
 ## Reproducibilidad
 
@@ -149,7 +151,7 @@ cd ETL
 jupyter notebook etl_definitivo.ipynb
 ```
 
-Dentro de Jupyter se debe seleccionar **Restart Kernel and Run All Cells**. El notebook volverá a generar `datos_train.csv` y `datos_test.csv` dentro de `Datos modelo`.
+Dentro de Jupyter se debe seleccionar **Restart Kernel and Run All Cells**. El notebook volverá a generar `datos_train.csv`, `datos_validation.csv` y `datos_test.csv` dentro de `Datos modelo`.
 
 También puede ejecutarse desde la terminal:
 
@@ -163,7 +165,7 @@ Después de completar el ETL:
 
 ```bash
 cd ../modelado
-jupyter notebook "modelación_3_modelos.ipynb"
+jupyter notebook modelacion_3_modelos_def.ipynb
 ```
 
 Se debe ejecutar el notebook completo y en orden. La búsqueda de hiperparámetros y la curva de validación entrenan varios Random Forest, por lo que esta sección puede tardar algunos minutos.
@@ -171,11 +173,11 @@ Se debe ejecutar el notebook completo y en orden. La búsqueda de hiperparámetr
 Desde terminal también puede utilizarse:
 
 ```bash
-jupyter nbconvert --to notebook --execute --inplace "modelación_3_modelos.ipynb" --ExecutePreprocessor.timeout=1800
+jupyter nbconvert --to notebook --execute --inplace modelacion_3_modelos_def.ipynb --ExecutePreprocessor.timeout=2400
 ```
 
 ## Limitaciones
 
 Los archivos procesados no incluyen identificadores de paciente o sesión por repetición. Por ello, no es posible realizar una separación independiente por sujeto. Los resultados representan la clasificación de nuevas señales o ventanas dentro de la población combinada del conjunto de datos y podrían sobreestimar la generalización a pacientes completamente nuevos.
 
-La comparación inicial de los tres algoritmos se reporta sobre el conjunto de prueba disponible. La búsqueda de hiperparámetros y la curva de validación se realizan exclusivamente dentro de entrenamiento mediante grupos de señal.
+La comparación de algoritmos y la selección de hiperparámetros se realizan con validation. El conjunto de test permanece reservado para una única evaluación final del Random Forest seleccionado.
