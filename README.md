@@ -196,8 +196,9 @@ La carpeta `Interfaz` contiene una aplicación en Streamlit para utilizar el Ran
 - Unir ambos grupos para obtener una señal de `880 × 12`.
 - Dividir la señal en cuatro ventanas consecutivas de `220 × 12`.
 - Extraer automáticamente las mismas 120 características utilizadas durante el modelado.
-- Mostrar la predicción y confianza de cada ventana.
-- Visualizar los canales de la señal y las probabilidades de las 16 actividades.
+- Mostrar la actividad predicha para cada ventana.
+- Visualizar los canales de la señal.
+- Consultar los hiperparámetros definitivos y las métricas finales del modelo.
 
 Cada archivo de sensores puede contener una sola repetición con forma `(880, 6)` o varias repeticiones con forma `(n, 880, 6)`. Los archivos `_1` y `_2` deben corresponder a la misma actividad y conservar el mismo orden de repeticiones. La repetición ubicada en la posición `i` de ambos archivos representa el mismo movimiento.
 

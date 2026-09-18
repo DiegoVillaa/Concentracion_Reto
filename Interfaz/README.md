@@ -1,6 +1,6 @@
 # Interfaz web — REHAB Motion Lab
 
-Esta aplicación utiliza el Random Forest definitivo para clasificar las cuatro ventanas de una señal cinemática de rehabilitación. Permite seleccionar un ejemplo local del dataset o cargar los dos archivos `.npy` correspondientes a los grupos de sensores 1 y 2.
+Esta aplicación utiliza el Random Forest definitivo para clasificar las cuatro ventanas de una señal cinemática de rehabilitación. Permite seleccionar un ejemplo local del dataset o cargar los dos archivos `.npy` correspondientes a los grupos de sensores 1 y 2. También muestra la configuración final seleccionada mediante Grid Search manual y las métricas obtenidas en test.
 
 ## Ejecución
 

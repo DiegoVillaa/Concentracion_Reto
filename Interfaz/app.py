@@ -6,7 +6,6 @@ import joblib
 import numpy as np
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 import streamlit as st
 
 from model_utils import (
@@ -62,7 +61,7 @@ st.markdown(
       .window-card { padding:18px; border-radius:18px; border:1px solid #30365c; background:#12162c; text-align:center; }
       .window-number { color:#8f9ab9; font-size:.72rem; text-transform:uppercase; letter-spacing:.1em; }
       .window-label { color:white; font:700 1.7rem 'Space Grotesk'; margin:.25rem 0; }
-      .confidence { color:#74e3d9; font-size:.88rem; }
+      .prediction-status { color:#74e3d9; font-size:.88rem; }
       .note { padding:14px 17px; color:#b8c0d9; background:rgba(35,213,208,.07); border-left:3px solid #23d5d0; border-radius:10px; }
       div[data-testid="stFileUploader"] { border:1px dashed #4b5388; border-radius:16px; padding:8px; }
       .stButton>button { border-radius:12px; border:0; color:white; font-weight:700;
@@ -165,14 +164,11 @@ try:
     features = extract_features(windows)
     feature_frame = pd.DataFrame(features, columns=feature_names())
     predictions = model.predict(feature_frame)
-    probabilities = model.predict_proba(feature_frame)
 except Exception as error:
     st.error(f"No fue posible analizar la señal: {error}")
     st.stop()
 
-confidence = probabilities.max(axis=1)
 dominant_activity = pd.Series(predictions).mode().iloc[0]
-average_confidence = confidence.mean()
 
 metric_columns = st.columns(4)
 with metric_columns[0]:
@@ -182,7 +178,7 @@ with metric_columns[1]:
 with metric_columns[2]:
     metric_card("Actividad dominante", str(dominant_activity), "Resumen visual de las 4 predicciones")
 with metric_columns[3]:
-    metric_card("Confianza promedio", f"{average_confidence:.1%}", "Probabilidad máxima media")
+    metric_card("Modelo definitivo", "200 árboles", "Configuración seleccionada con Grid Search")
 
 st.markdown("## Resultado por ventana")
 window_columns = st.columns(4)
@@ -193,7 +189,7 @@ for index, column in enumerate(window_columns):
         st.markdown(
             f'<div class="window-card"><div class="window-number">Ventana {index + 1} · puntos {index * 220 + 1}–{(index + 1) * 220}</div>'
             f'<div class="window-label">{predictions[index]}</div>'
-            f'<div class="confidence">{confidence[index]:.1%} de confianza{status}</div></div>',
+            f'<div class="prediction-status">Predicción del modelo{status}</div></div>',
             unsafe_allow_html=True,
         )
 
@@ -234,47 +230,47 @@ with left:
             paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(10,13,30,.65)",
             xaxis_title="Punto temporal", yaxis_title="Valor normalizado",
         )
-        st.plotly_chart(figure, use_container_width=True)
+        st.plotly_chart(figure, width="stretch")
 
 with right:
-    st.markdown("## Confianza detallada")
-    selected_window = st.selectbox("Ventana", [1, 2, 3, 4]) - 1
-    probability_frame = pd.DataFrame(
-        {"actividad": model.classes_, "probabilidad": probabilities[selected_window]}
-    ).sort_values("probabilidad", ascending=True).tail(6)
-    bars = px.bar(
-        probability_frame,
-        x="probabilidad",
-        y="actividad",
-        orientation="h",
-        color="probabilidad",
-        color_continuous_scale=["#31385e", "#7867ff", "#23d5d0"],
-        template="plotly_dark",
+    st.markdown("## Configuración definitiva")
+    st.caption("Hiperparámetros seleccionados después de evaluar 16 combinaciones mediante Grid Search manual.")
+    configuration = pd.DataFrame(
+        {
+            "Hiperparámetro": [
+                "n_estimators",
+                "max_depth",
+                "min_samples_split",
+                "min_samples_leaf",
+                "max_features",
+                "class_weight",
+                "random_state",
+            ],
+            "Valor final": [
+                "200",
+                "None (sin límite)",
+                "2",
+                "1",
+                "sqrt",
+                "balanced",
+                "42",
+            ],
+        }
     )
-    bars.update_layout(
-        height=420, margin=dict(l=10, r=10, t=25, b=10), coloraxis_showscale=False,
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(10,13,30,.65)",
-        xaxis_tickformat=".0%", xaxis_title="Probabilidad", yaxis_title="Actividad",
+    st.dataframe(configuration, hide_index=True, width="stretch")
+    st.markdown(
+        '<div class="note"><strong>Selección:</strong> las configuraciones más restrictivas no mejoraron el F1 macro de validación. Por ello se conservó la configuración inicial.</div>',
+        unsafe_allow_html=True,
     )
-    st.plotly_chart(bars, use_container_width=True)
 
-st.markdown("## Mapa de probabilidades")
-heatmap = go.Figure(
-    data=go.Heatmap(
-        z=probabilities,
-        x=model.classes_,
-        y=["Ventana 1", "Ventana 2", "Ventana 3", "Ventana 4"],
-        colorscale=[[0, "#10142b"], [0.4, "#5446aa"], [1, "#24d5cf"]],
-        colorbar=dict(title="Prob."),
-        hovertemplate="%{y}<br>Actividad %{x}<br>Probabilidad %{z:.1%}<extra></extra>",
-    )
-)
-heatmap.update_layout(
-    height=330, margin=dict(l=15, r=15, t=20, b=10),
-    paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(10,13,30,.65)",
-    xaxis_title="Actividad REHAB", yaxis_title="",
-)
-st.plotly_chart(heatmap, use_container_width=True)
+st.markdown("## Desempeño del modelo definitivo")
+result_columns = st.columns(3)
+with result_columns[0]:
+    metric_card("Exactitud en test", "95.63%", "Predicciones correctas totales")
+with result_columns[1]:
+    metric_card("Precisión macro", "95.49%", "Promedio con igual peso por actividad")
+with result_columns[2]:
+    metric_card("F1 macro", "95.31%", "Equilibrio entre precisión y recall")
 
 with st.expander("¿Cómo se obtiene la predicción?"):
     st.markdown(
