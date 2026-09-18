@@ -92,6 +92,12 @@ Los modelos se ajustan con train y se comparan con validation mediante exactitud
 | SVM | 0.8602 | 0.8539 | 0.8524 |
 | Random Forest | 0.9460 | 0.9453 | 0.9443 |
 
+### Selección de hiperparámetros
+
+La versión definitiva utiliza un **conjunto fijo de validation**, no cross-validation. Cada configuración de Random Forest se ajusta únicamente con train y se evalúa sobre validation mediante F1 macro. La combinación con el mejor resultado se selecciona sin consultar test.
+
+Después de elegir los hiperparámetros, train y validation se unen para ajustar un nuevo Random Forest desde cero. Test se utiliza una sola vez para medir el desempeño final. Esta estrategia es más sencilla que cross-validation y mantiene una separación clara entre ajuste, selección y evaluación, aunque sus resultados pueden depender más de la partición fija de validation.
+
 ### Revisión de sobreajuste
 
 Random Forest alcanzó 1.0000 de exactitud y F1 macro en train. En validation obtuvo 0.9460 de exactitud y 0.9443 de F1 macro, con una brecha de F1 de 0.0557. Por ello se identificó una señal moderada de sobreajuste.
@@ -180,4 +186,4 @@ jupyter nbconvert --to notebook --execute --inplace modelacion_3_modelos_def.ipy
 
 Los archivos procesados no incluyen identificadores de paciente o sesión por repetición. Por ello, no es posible realizar una separación independiente por sujeto. Los resultados representan la clasificación de nuevas señales o ventanas dentro de la población combinada del conjunto de datos y podrían sobreestimar la generalización a pacientes completamente nuevos.
 
-La comparación de algoritmos y la selección de hiperparámetros se realizan con validation. El conjunto de test permanece reservado para una única evaluación final del Random Forest seleccionado.
+La comparación de algoritmos y la selección de hiperparámetros se realizan con el conjunto fijo de validation, sin cross-validation. El conjunto de test permanece reservado para una única evaluación final del Random Forest seleccionado.
