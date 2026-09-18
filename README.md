@@ -39,6 +39,11 @@ Concentracion_Reto/
 │   └── datos_test.csv
 ├── modelado/
 │   └── modelacion_3_modelos_def.ipynb
+├── Interfaz/
+│   ├── app.py                     # Aplicación web en Streamlit
+│   ├── modelo_random_forest.joblib
+│   ├── model_utils.py             # Ventanas y extracción de características
+│   └── entrenar_modelo.py         # Regeneración opcional del modelo
 └── Momento - Redefinición de datos/  # Propuestas y pruebas anteriores
 ```
 
@@ -181,6 +186,54 @@ Desde terminal también puede utilizarse:
 ```bash
 jupyter nbconvert --to notebook --execute --inplace modelacion_3_modelos_def.ipynb --ExecutePreprocessor.timeout=2400
 ```
+
+## Interfaz web
+
+La carpeta `Interfaz` contiene una aplicación en Streamlit para utilizar el Random Forest definitivo sin ejecutar los notebooks. La aplicación permite:
+
+- Seleccionar una actividad y una repetición de los archivos locales del dataset.
+- Cargar manualmente los dos archivos `.npy` correspondientes a los grupos de sensores `_1` y `_2`.
+- Unir ambos grupos para obtener una señal de `880 × 12`.
+- Dividir la señal en cuatro ventanas consecutivas de `220 × 12`.
+- Extraer automáticamente las mismas 120 características utilizadas durante el modelado.
+- Mostrar la predicción y confianza de cada ventana.
+- Visualizar los canales de la señal y las probabilidades de las 16 actividades.
+
+Cada archivo de sensores puede contener una sola repetición con forma `(880, 6)` o varias repeticiones con forma `(n, 880, 6)`. Los archivos `_1` y `_2` deben corresponder a la misma actividad y conservar el mismo orden de repeticiones. La repetición ubicada en la posición `i` de ambos archivos representa el mismo movimiento.
+
+### Instalación de la interfaz
+
+Con el entorno virtual activado y desde la raíz del repositorio:
+
+```bash
+python -m pip install -r Interfaz/requirements.txt
+```
+
+### Ejecución
+
+```bash
+python -m streamlit run Interfaz/app.py
+```
+
+Streamlit mostrará una dirección local, normalmente:
+
+```text
+http://localhost:8501
+```
+
+El archivo `Interfaz/modelo_random_forest.joblib` ya contiene el modelo ajustado con train y validation. Por ello, no es necesario volver a entrenarlo para utilizar la aplicación.
+
+Si se necesita regenerar el archivo del modelo después de volver a ejecutar el ETL, debe utilizarse:
+
+```bash
+python Interfaz/entrenar_modelo.py
+```
+
+Este script utiliza únicamente `datos_train.csv` y `datos_validation.csv`. El conjunto de test no se incorpora al reentrenamiento.
+
+### Interpretación de los resultados
+
+La interfaz presenta una predicción para cada una de las cuatro ventanas de 220 puntos. La actividad dominante se incluye únicamente como resumen visual. Las métricas reportadas por el proyecto se calcularon tratando cada ventana como una observación independiente, sin aplicar votación para convertirlas en una sola predicción.
 
 ## Limitaciones
 
