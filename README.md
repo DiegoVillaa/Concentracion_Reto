@@ -2,6 +2,15 @@
 
 Este repositorio contiene el desarrollo de la solución para el reto REHAB de la concentración **Inteligencia Artificial para la Ciencia de Datos**.
 
+## Documentación final
+
+Los entregables finales del proyecto se encuentran en la carpeta [`Documentación`](./Documentaci%C3%B3n/). Para facilitar su revisión, pueden consultarse directamente desde los siguientes enlaces:
+
+- **[Reporte final del reto REHAB](./Documentaci%C3%B3n/Reporte_final_REHAB.pdf):** documenta el problema, análisis exploratorio, reconstrucción del archivo corrupto, ETL, modelación, refinamiento, resultados, interfaz y conclusiones.
+- **[Presentación final del reto REHAB](./Documentaci%C3%B3n/Reto%201%20Presentaci%C3%B3n.pdf):** resume el enfoque seguido, las decisiones principales y los resultados obtenidos.
+
+Se recomienda comenzar por la presentación para obtener una visión general y consultar después el reporte para revisar el procedimiento completo y su justificación.
+
 ## Introducción al reto
 
 Un accidente cerebrovascular puede afectar la movilidad, la fuerza y la coordinación de una persona, por lo que la evaluación y el entrenamiento de rehabilitación son importantes durante su recuperación. El conjunto de datos REHAB contiene registros cinemáticos obtenidos mediante sensores portátiles durante distintos movimientos de rehabilitación.
@@ -44,6 +53,9 @@ Concentracion_Reto/
 │   ├── modelo_random_forest.joblib
 │   ├── model_utils.py             # Ventanas y extracción de características
 │   └── entrenar_modelo.py         # Regeneración opcional del modelo
+├── Documentación/
+│   ├── Reporte_final_REHAB.pdf     # Reporte completo del proyecto
+│   └── Reto 1 Presentación.pdf     # Presentación final del equipo
 └── Momento - Redefinición de datos/  # Propuestas y pruebas anteriores
 ```
 
